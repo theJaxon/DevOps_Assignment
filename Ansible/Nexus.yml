@@ -1,0 +1,27 @@
+- hosts: localhost
+  tasks:
+  - name: Create Nexus Deployment
+    community.kubernetes.k8s:
+      api_version: apps/v1 
+      namespace: default
+      definition:
+        kind: Deployment 
+        metadata:
+          name: nexus
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: nexus 
+          template:
+            metadata:
+              labels:
+                app: nexus 
+            spec:
+              containers:
+              - name: nexus 
+                image: sonatype/nexus3
+                ports:
+                - containerPort: 8081
+    environment:
+        KUBECONFIG: /home/vagrant/.kube/config

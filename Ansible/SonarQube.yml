@@ -1,0 +1,27 @@
+- hosts: localhost
+  tasks:
+  - name: Create SonarQube Deployment
+    community.kubernetes.k8s:
+      api_version: apps/v1 
+      namespace: default
+      definition:
+        kind: Deployment 
+        metadata:
+          name: sonarqube
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: sonarqube 
+          template:
+            metadata:
+              labels:
+                app: sonarqube 
+            spec:
+              containers:
+              - name: sonarqube 
+                image: sonarqube
+                ports:
+                - containerPort: 9000
+    environment:
+        KUBECONFIG: /home/vagrant/.kube/config

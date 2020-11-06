@@ -1,0 +1,5 @@
+- hosts: localhost 
+  roles:
+  - k8s-deploy
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config

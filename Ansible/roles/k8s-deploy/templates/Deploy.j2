@@ -1,0 +1,18 @@
+kind: Deployment 
+metadata:
+name: "{{ item.name }}"
+spec:
+replicas: 1
+selector:
+    matchLabels:
+    app: "{{ item.name }}"
+template:
+    metadata:
+    labels:
+        app: "{{ item.name }}"
+    spec:
+    containers:
+    - name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        ports:
+        - containerPort: "{{ item.port }}"

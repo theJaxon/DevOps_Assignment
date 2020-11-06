@@ -1,0 +1,12 @@
+---
+# vars file for k8s-deploy
+apps:
+- name: jenkins 
+  image: jenkins/jenkins 
+  port: 8080
+- name: nexus 
+  image: sonatype/nexus3
+  port: 8081
+- name: sonarqube
+  image: sonarqube
+  port: 9000

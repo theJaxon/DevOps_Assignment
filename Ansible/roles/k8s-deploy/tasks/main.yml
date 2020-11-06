@@ -1,0 +1,26 @@
+---
+# tasks file for k8s-deploy
+- name: Create Jenkins, Nexus and SonarQube Deployments
+  community.kubernetes.k8s:
+    api_version: apps/v1 
+    namespace: default
+    definition:
+      kind: Deployment 
+      metadata:
+        name: "{{ item.name }}"
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: "{{ item.name }}"
+        template:
+          metadata:
+            labels:
+              app: "{{ item.name }}"
+          spec:
+            containers:
+            - name: "{{ item.name }}"
+              image: "{{ item.image }}"
+              ports:
+              - containerPort: "{{ item.port }}"
+  loop: "{{ apps }}"
