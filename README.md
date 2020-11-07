@@ -28,6 +28,7 @@ The issues were mainly the following:
 
 * After setting up the infrastructure using the provided `infra` role i couldn't SSH into the NAT instance even though SSH is allowed through the attached security group,
 
+The playbooks to setup kubernetes however were executed on local machines using vagrant instead to avoid the t2.micro limitations
 ---
 
 ### Deploying DevOps Tools using the created K8s Cluster:
@@ -387,7 +388,7 @@ This is a problem with openshift since the module relies on it, it can be seen [
 First `/var/run/docker.sock` was mounted into the container to give access to docker daemon on the host OS, on the jenkins pod docker repo for debian stretsh was added then `docker-ce-cli` was installed, in jenkins both `docker` and `docker-pipeline` plugins were also installed.
 The app source is located [here](https://github.com/darkn3rd/webmf-python-flask)
 
-The Jenkinsfile pipeline is simple, it runs the tests inside the docker image then uses the junit plugin to consume the generated xml report
+The Jenkinsfile pipeline is simple, it runs the tests inside the docker image then uses the junit plugin to consume the generated xml report located at `/var/jenkins_home/workspace/<pipeline-name>/test-reports`
 
 ```groovy
 pipeline {
