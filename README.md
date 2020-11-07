@@ -376,3 +376,4 @@ Final result
 #### Issues in making a single role for the 3 deployments:
 Another approach that could have made it easier is to create single task for a deployment and loop over the required deployments, currently i've faced an issue when it comes to using the loop with the k8s module in ansible, the containerPort part of the deployment always throws an error.
 This is a problem with openshift since the module relies on it, it can be seen [here](https://github.com/openshift/openshift-restclient-python/issues/321)
+![Ansible_loop](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/Deploy-loop.jpg)
