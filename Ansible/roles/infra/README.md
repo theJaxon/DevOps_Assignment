@@ -2,6 +2,7 @@ Ansible Role: Infra
 =========
 
 * Creates a VPC with 2 subnets (private and public)
+* Generate a key pair that will be used for the 3 instances.
 * Creates 2 ec2 instanes in the private subnet, one as kubernetes controller and one as kubernetes worker and attaches the required security groups to each one.
 * Create a NAT instance in the public subnet to provide internet access to machines in the private subnet, the route table is configured to use this machine for internet access.
 
