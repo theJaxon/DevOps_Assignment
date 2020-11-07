@@ -1,0 +1,53 @@
+---
+# vars file for bootstrap
+username: ec2-user
+core_utils:
+  - yum-utils
+  - device-mapper-persistent-data
+  - lvm2 
+
+# keys:
+#   - name: docker 
+#     key: https://download.docker.com/linux/centos/gpg
+#   - name: kubernetes
+#     key: 
+#     - https://packages.cloud.google.com/yum/doc/yum-key.gpg 
+#     - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+repos: 
+  - name: docker 
+    baseurl: https://download.docker.com/linux/centos/8/$basearch/stable/
+    description: docker-ce stable repo for RHEL 8
+    gpg_key: https://download.docker.com/linux/centos/gpg
+    repo_gpgcheck: False
+  - name: kubernetes 
+    baseurl:  https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+    description: Kubernetes repo for RHEL.
+    gpg_key: 
+    - https://packages.cloud.google.com/yum/doc/yum-key.gpg 
+    - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    repo_gpgcheck: True
+    exclude: kubelet-1.18.4-0 kubeadm kubectl
+
+container_packages:
+  - docker-ce 
+  - kubeadm 
+  - kubelet-1.19.3-0
+  - kubectl
+
+services:
+  - name: docker 
+    state: started
+    is_enabled: True
+  - name: kubelet 
+    state: started
+    is_enabled: True  
+  # - name: firewalld 
+  #   state: stopped
+  #   is_enabled: False 
+  - name: sshd 
+    state: restarted 
+    is_enabled: True 
+  
+k8s_conf_file: /etc/sysctl.d/kubernetes.conf 
+root_pass: kubeadmin

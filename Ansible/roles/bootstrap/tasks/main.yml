@@ -1,0 +1,77 @@
+---
+# tasks file for bootstrap
+- name: Install core utilities 
+  yum:
+    name: "{{ core_utils }}"
+    state: latest
+
+- name: Add docker and K8s repos 
+  yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    baseurl: "{{ item.baseurl }}"
+    gpgcheck: True 
+    gpgkey: "{{ item.gpg_key }}"
+    repo_gpgcheck: "{{ item.repo_gpgcheck }}"
+    exclude: "{{ item.exclude | d(omit) }}"
+  loop: "{{ repos }}"
+
+- name: Download Docker and Kubernetes components
+  yum:
+    name: "{{ container_packages }}"
+    state: latest
+    disable_excludes: kubernetes
+    
+- name: Add current user to docker group 
+  user:
+    name: "{{ username }}" 
+    groups: docker 
+    append: True 
+
+- name: Disable SELinux 
+  lineinfile:
+    path: /etc/sysconfig/selinux
+    regexp: '^SELINUX=enforcing'
+    line: 'SELINUX=disabled'
+
+- name: remove swap line from /etc/fstab
+  lineinfile:
+    state: absent 
+    regexp: 'swap'
+    path: /etc/fstab 
+
+- name: disable swap 
+  command: "swapoff -a"
+
+- name: Enable ssh password authentication
+  lineinfile:
+    regexp: '^PasswordAuthentication no'
+    line: 'PasswordAuthentication yes'
+    path: /etc/ssh/sshd_config
+
+- name: Handle required services 
+  service:
+    name: "{{ item.name }}"
+    state: "{{ item.state }}"
+    enabled: "{{ item.is_enabled }}"
+  loop: "{{ services }}"
+
+- name: Create kubernetes config file 
+  file:
+    state: touch 
+    path: "{{ k8s_conf_file }}"
+
+- name: Add sysctl settings 
+  blockinfile:
+    block: |
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.bridge.bridge-nf-call-iptables = 1
+    path: "{{ k8s_conf_file }}"
+
+- name: read the newly added values in {{ k8s_conf_file }}
+  command: "sysctl --system"
+
+- name: change root password 
+  user:
+    name: root 
+    password: "{{ root_pass | password_hash('sha512') }}"

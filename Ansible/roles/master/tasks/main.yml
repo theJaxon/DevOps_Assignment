@@ -1,0 +1,75 @@
+---
+# tasks file for roles/master
+- name: Check if kubernetes is working 
+  block:
+  - name: Check kubernetes status 
+    shell: 'kubectl cluster-info | sed "s/\x1B\[[0-9;]\{1,\}[A-Za-z]//g"' # The sed part is added to remove ANSI color codes from the output [1]
+    register: kubernetes_status
+    become: True 
+    become_method: sudo
+    become_user: ec2-user
+
+  - name: check if kubernetes is up and running 
+    assert:
+      that: 
+        - kubernetes_status.stdout.find('Kubernetes master is running') != -1
+        - kubernetes_status.stdout.find('KubeDNS is running') != -1 
+      success_msg: "Kubernetes is running"
+      fail_msg: "Kubernetes cluster isn't working"
+  
+  rescue:
+  - name: Initialize kubernetes cluster 
+    shell: |
+      kubeadm init --pod-network-cidr=10.0.0.0/16 --ignore-preflight-errors=all 
+    register: kubeadm_init_var
+    retries: 1
+
+- name: create kubeinit log file 
+  copy:
+    content:  "{{ kubeadm_init_var }}"  
+    dest: /home/vagrant/kubeinit.log 
+- name: create .kube directory 
+  file:
+    state: directory 
+    path: /home/vagrant/.kube 
+
+- name: Change admin.conf ownership 
+  file:
+    path: /etc/kubernetes/admin.conf 
+    mode: '0666'
+
+- name: copy admin config file 
+  copy: 
+    src: /etc/kubernetes/admin.conf 
+    dest: /home/vagrant/.kube/config 
+  
+- name: change .kube directory ownership 
+  file: 
+    path: /home/vagrant/.kube 
+    owner: vagrant 
+    group: vagrant 
+    recurse: True 
+
+- name: Check calico network pods 
+  block:
+  - name: get the status of calico  
+    shell: "kubectl get po -n kube-system -o custom-columns=POD:.metadata.name,STATE:.status.phase | grep calico-kube | awk -F ' ' '{print $2}'"
+    register: calico_var 
+    become: True 
+    become_user: ec2-user
+
+  - name: Verify pods are running 
+    assert:
+      that:
+        - calico_var.stdout == "Running"
+      success_msg: "Calico is running successfully"
+      fail_msg: "Calico isn't functioning properly"
+
+  rescue:
+  - name: Deploy calico network 
+    shell: "kubectl create -f https://docs.projectcalico.org/v3.9/manifests/calico.yaml"
+    become: True 
+    become_user: ec2-user
+
+  - name: Generate and save cluster join command to /joincluster.sh
+    shell: "kubeadm token create --print-join-command > /joincluster.sh"
