@@ -7,7 +7,7 @@
       definition:
         kind: Deployment 
         metadata:
-          name: jenkins-deploy
+          name: jenkins
         spec:
           replicas: 1
           selector:
@@ -18,10 +18,27 @@
               labels:
                 app: jenkins
             spec:
+              nodeName: worker-1
+              volumes:
+              - name: plugins-v 
+                hostPath:
+                  path: /jenkins/plugins.txt
               containers:
               - name: jenkins 
-                image: jenkins/jenkins 
+                image: jenkins/jenkins
                 ports:
                 - containerPort: 8080
+                # Setup Username and Password ans skip initial setup screen
+                env:
+                - name: JENKINS_OPTS
+                  value: --argumentsRealm.roles.user=admin --argumentsRealm.passwd.admin=admin --argumentsRealm.roles.admin=admin
+                - name: JAVA_OPTS 
+                  value: -Djenkins.install.runSetupWizard=false
+                volumeMounts:
+                - name: plugins-v 
+                  mountPath: /usr/share/jenkins/plugins.txt
+                # Remains 1 step that i couldn't automate correctly which is running /usr/local/bin/install-plugins.sh < /usr/share/jenkins/plugins.txt
+                # For now k exec -it jenkins-  -- bash
+                # /usr/local/bin/install-plugins.sh < /usr/share/jenkins/plugins.txt
     environment:
         KUBECONFIG: /home/vagrant/.kube/config

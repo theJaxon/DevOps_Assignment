@@ -17,6 +17,14 @@ ansible-playbook Deploy.yml --vault-password-file=secret.txt
 ### Deploying K8s Cluster:
 Deploying K8s can be done either using kubeadm or using a cloud managed service like EKS.
 
+The approach taken is to deploy using kubeadm on amazon ec2 instances located inside the private subnet of a VPC and use a NAT instance in the public subnet to allow internet access.
+
+The issues were mainly the following:
+* `t2.micro` machines resources weren't sufficient for deploying k8s.
+* After setting up the infrastructure using the provided `infra` role i couldn't SSH into the NAT instance even though SSH is allowed through the attached security group,
+
+---
+
 ### Deploying DevOps Tools using the created K8s Cluster:
 #### Jenkins deployment:
 
