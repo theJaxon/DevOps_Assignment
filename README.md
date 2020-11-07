@@ -19,8 +19,13 @@ Deploying K8s can be done either using kubeadm or using a cloud managed service 
 
 The approach taken is to deploy using kubeadm on amazon ec2 instances located inside the private subnet of a VPC and use a NAT instance in the public subnet to allow internet access.
 
+![VPC](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/VPC.jpg)
+
 The issues were mainly the following:
 * `t2.micro` machines resources weren't sufficient for deploying k8s.
+
+![kubeadm](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/kubeadm.jpg)
+
 * After setting up the infrastructure using the provided `infra` role i couldn't SSH into the NAT instance even though SSH is allowed through the attached security group,
 
 ---
@@ -160,6 +165,7 @@ jenkins-deploy   192.168.226.114:8080   71s
 ---
 
 Final result 
+![Jenkins](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/Jenkins-Deployment.jpg)
 
 ---
 
@@ -277,6 +283,9 @@ status:
 </p>
 </details>
 
+Final result 
+
+![SonarQube](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/SonarQube-Deploy.jpg)
 ---
 
 #### Nexus Deployment:
@@ -359,6 +368,10 @@ status: {}
 
 </p>
 </details>
+
+Final result
+![Nexus](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/Nexus-Deploy.jpg)
+![Nexus2](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/Nexus2-Deploy.jpg)
 
 #### Issues in making a single role for the 3 deployments:
 Another approach that could have made it easier is to create single task for a deployment and loop over the required deployments, currently i've faced an issue when it comes to using the loop with the k8s module in ansible, the containerPort part of the deployment always throws an error.
