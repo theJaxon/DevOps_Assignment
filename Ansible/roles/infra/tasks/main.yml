@@ -1,0 +1,184 @@
+---
+# tasks file for infra
+- name: Install boto3 if missing 
+  pip:
+    name: boto3 
+
+- name: Create VPC 
+  ec2_vpc_net: 
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: Kubernetes_VPC
+    cidr_block: 10.0.0.0/16
+    region: "{{ region }}"
+    tags:
+      name: "Kubernetes VPC"
+  register: Kubernetes_VPC_var
+
+- set_fact:
+    kubernetes_vpc_id: "{{ Kubernetes_VPC_var['vpc']['id'] }}"
+
+- name: Create Public subnet inside the VPC 
+  ec2_vpc_subnet:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    az: us-east-1a
+    cidr: 10.0.1.0/24
+    map_public: True
+    tags:
+      name: "10.0.1.0-us-east-1a"
+  register: Kubernetes_public_subnet_var
+
+# Key Pairs 
+- name: Generate EC2 Keys
+  ec2_key:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: kubernetes_ec2_key 
+    region: "{{ region }}"
+    state: present
+  register: kubernetes_ec2_key_var 
+
+- name: Display and store  private key if it exists
+  block:
+  - name: display private key
+    debug:
+      var:  kubernetes_ec2_key_var['key']['private_key']
+
+  - name: Store private key
+    copy:
+      content: "{{  kubernetes_ec2_key_var['key']['private_key'] }}"
+      dest: /tmp/kubernetes_ec2_key.pem
+  when: kubernetes_ec2_key_var['key']['private_key'] is defined
+
+# NAT Instance 
+- name: Create NAT Instance SG 
+  ec2_group:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: nat_instance_SG 
+    description: "NAT Instance to allow EC2 instances in private subnets to have internet access"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    region: "{{ region }}"
+    rules:
+    - proto: tcp
+      from_port: 22 
+      to_port: 22
+      cidr_ip: 0.0.0.0/0
+
+- name: Launch NAT instance 
+  ec2_instance:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: kubernetes_nat_instance
+    key_name: kubernetes_ec2_key
+    vpc_subnet_id: "{{ Kubernetes_public_subnet_var['subnet']['id'] }}"
+    instance_type: t2.micro
+    state: running
+    security_group: nat_instance_SG
+    network:
+      assign_public_ip: True
+      source_dest_check: False 
+    image_id: "{{ nat_instance_id }}"
+    wait_timeout: 50
+    tags:
+      Name: NAT_Instance 
+  register: nat_ec2_instance
+
+- name: Display NAT Instance Public IP
+  debug:
+    var: nat_ec2_instance['instances'][0]['public_ip_address'] 
+
+- name: Create Private subnet inside the VPC 
+  ec2_vpc_subnet:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    az: us-east-1b
+    cidr: 10.0.2.0/24
+    tags:
+      name: "10.0.2.0-us-east-1b"
+  register: Kubernetes_private_subnet_var
+
+- name: Create Internet Gateway
+  ec2_vpc_igw:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    state: present
+  register: kubernetes_igw_var
+
+- name: Create route table 
+  ec2_vpc_route_table:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    region: "{{ region }}"
+    subnets:
+    - "{{ Kubernetes_public_subnet_var['subnet']['id'] }}"
+    routes:
+    - dest: 0.0.0.0/0
+      instance_id: "{{ nat_ec2_instance['instances'][0].instance_id }}"
+  register: kubernetes_route_table 
+
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#control-plane-node-s
+- name: Create Kubernetes Controller SG 
+  ec2_group:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: kubernetes_controller_SG
+    description: "{{ item.description }}"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    region: "{{ region }}"
+    # Inbound traffic
+    rules:
+    - proto: tcp 
+      from_port: "{{ item.port }}"
+      to_port: "{{ item.port }}"
+      cidr_ip: 10.0.1.0/24
+  loop: "{{ controller_ports }}"
+      
+- name: Create Kubernetes Worker SG 
+  ec2_group:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: kubernetes_worker_SG 
+    description: "Kubernetes Worker SG"
+    vpc_id: "{{ kubernetes_vpc_id }}"
+    region: "{{ region }}"
+    rules:
+    - proto: tcp # SSH
+      from_port: 22 
+      to_port: 22
+      cidr_ip: 10.0.1.0/24
+    - proto: tcp # Kubelet API
+      from_port: 10250 
+      to_port: 10250 
+      cidr_ip: 10.0.1.0/24
+    - proto: tcp # NodePort Service
+      from_port: 30000
+      to_port: 32767
+      cidr_ip: 10.0.1.0/24
+
+- name: Launch kubernetes controller and worker instance in private subnet 
+  ec2_instance:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: "{{ item.name }}"
+    key_name: kubernetes_ec2_key
+    vpc_subnet_id: "{{ Kubernetes_private_subnet_var['subnet']['id'] }}"
+    instance_type: t2.micro
+    state: running
+    security_group: "{{ item.sg }}"
+    network:
+      assign_public_ip: False
+    image_id: "{{ redhat_instance_id }}"
+    wait_timeout: 50
+  loop: "{{ private_subnet_ec2_instances }}"
+  register: kubernetes_ec2_instance
+
+- name: Make local facts dir  
+  file:
+    state: directory 
+    path: /etc/ansible/facts.d 
