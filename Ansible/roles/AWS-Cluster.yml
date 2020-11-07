@@ -1,0 +1,7 @@
+- hosts: localhost 
+  roles:
+  - infra
+  - bootstrap
+  - master 
+  environment:
+    AWS_REGION: us-east-1

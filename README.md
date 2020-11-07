@@ -167,6 +167,9 @@ jenkins-deploy   192.168.226.114:8080   71s
 Final result 
 ![Jenkins](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/Jenkins-Deployment.jpg)
 
+#### A different approach:
+another approach is to add a separate plugins file and set the environment variable that allows skipping the initial login setup, the approach however didn't fully work, the file `Jenkins.yml` inside the Ansible folder shows that approach, the main issue is that even after the plugins got downloaded they didn't show in jenkins dashboard.
+
 ---
 
 #### SonarQube Deployment:
@@ -377,3 +380,34 @@ Final result
 Another approach that could have made it easier is to create single task for a deployment and loop over the required deployments, currently i've faced an issue when it comes to using the loop with the k8s module in ansible, the containerPort part of the deployment always throws an error.
 This is a problem with openshift since the module relies on it, it can be seen [here](https://github.com/openshift/openshift-restclient-python/issues/321)
 ![Ansible_loop](https://github.com/theJaxon/DevOps_Assignment/blob/main/Images/Deploy-loop.jpg)
+
+---
+
+### Deploying a sample app on the Jenkins deployment:
+First `/var/run/docker.sock` was mounted into the container to give access to docker daemon on the host OS, on the jenkins pod docker repo for debian stretsh was added then `docker-ce-cli` was installed, in jenkins both `docker` and `docker-pipeline` plugins were also installed.
+The app source is located [here](https://github.com/darkn3rd/webmf-python-flask)
+
+The Jenkinsfile pipeline is simple, it runs the tests inside the docker image then uses the junit plugin to consume the generated xml report
+
+```groovy
+pipeline {
+  agent { docker { image 'python:3.7.6' } }
+  stages {
+    stage('build') {
+      steps {
+        sh 'pip install -r requirements.txt'
+      }
+    }
+    stage('test') {
+      steps {
+        sh 'python test.py'
+      }
+      post {
+        always {
+          junit 'test-reports/*.xml'
+        }
+      }    
+    }
+  }
+}
+```
